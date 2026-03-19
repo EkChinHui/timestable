@@ -20,7 +20,7 @@ Start → Quiz → Results
 - **Table picker** (visible only in Tables Drill mode): buttons 1–10 to select which table
 - **Question count:** 10, 20, or 30 (default 20)
 - Start button
-- Lifetime stats summary: sessions completed, average accuracy
+- Lifetime stats summary: sessions completed, overall accuracy (`sum(correct) / sum(attempts)` across all matrix cells)
 
 ### Quiz Screen
 - Progress indicator: "Question N / Total"
@@ -35,12 +35,13 @@ Start → Quiz → Results
 - No skip — every question must be answered
 
 ### Results Screen
-- Session summary: score (e.g., 18/20), average response time
+- Session summary: score (e.g., 18/20), average response time — read from `mt_current_session` in localStorage
 - 10×10 difficulty heatmap (aggregated across all sessions)
   - Rows and columns labeled 1–10
   - Cell color: green (easy) → yellow (medium) → red (hard)
+  - Both `(a,b)` and `(b,a)` cells render the same data from the canonical `[min,max]` pair
   - Hoverable cells showing details (error rate, avg time, attempts)
-- "Play Again" button (returns to Quiz with same settings)
+- "Play Again" button (returns to Quiz with same settings from `mt_session_settings`)
 - "Home" button (returns to Start)
 
 ## Data Model
@@ -72,7 +73,8 @@ type PairStats = {
 |-----|------|-------------|
 | `mt_matrix` | `Record<number, Record<number, PairStats>>` | 10×10 performance data |
 | `mt_sessions` | `number` | Lifetime session count |
-| `mt_totalQuestions` | `number` | Lifetime questions answered |
+| `mt_session_settings` | `{ mode, table?, count }` | Session settings — written when user presses Start, read by Quiz and "Play Again" |
+| `mt_current_session` | `{ score, total, avgTime, answers[] }` | Current session results (written at quiz end, read by Results) |
 
 ## Modes
 
@@ -80,21 +82,26 @@ type PairStats = {
 Weighted random selection from all 55 unique pairs. Weight formula:
 
 ```
-weight(a, b) = 1 + difficultyScore × aggressiveness
-aggressiveness = min(totalLifetimeAttempts / 200, 3)
+For pairs with attempts > 0:
+  weight(a, b) = 1 + difficultyScore × aggressiveness
+
+For pairs with attempts == 0:
+  weight(a, b) = 1.5  (fixed — encourages coverage, skips difficultyScore formula)
+
+aggressiveness = min(mt_sessions × 20 / 200, 3)
+  (uses session count as proxy; ~10 sessions to reach moderate, ~30 for max)
 ```
 
 - With no history: uniform random (aggressiveness ≈ 0)
-- After ~200 attempts: moderate weighting toward weak pairs
-- After ~600+ attempts: strong weighting (capped at 3×)
-- Pairs with zero attempts get a small bonus (+0.5) to ensure coverage
-- Anti-repeat: last 3 asked pairs excluded from selection
+- After ~10 sessions: moderate weighting toward weak pairs
+- After ~30+ sessions: strong weighting (capped at 3×)
+- Anti-repeat: last `min(3, poolSize - 1)` asked pairs excluded from selection (prevents deadlock in small pools)
 
 ### Random
 Pure uniform random across all 55 unique pairs. Anti-repeat still applies. Performance data still tracked.
 
 ### Tables Drill
-User selects a number N (1–10). Questions are drawn only from the 10 pairs involving N (N×1 through N×10), in random order. No adaptive weighting. Performance data still tracked.
+User selects a number N (1–10). Questions are drawn only from the 10 pairs involving N (N×1 through N×10), shuffled randomly. Anti-repeat rule applies (`min(3, poolSize - 1)`). No adaptive weighting. Performance data still tracked.
 
 ## Heatmap Visualization
 
