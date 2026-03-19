@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import Heatmap from '$lib/components/Heatmap.svelte';
   import { loadMatrix } from '$lib/stores/performance';
@@ -12,11 +13,11 @@
   onMount(() => {
     session = loadCurrentSession();
     matrix = loadMatrix();
-    if (!session) goto('/');
+    if (!session) goto(`${base}/`);
   });
 
   function playAgain() {
-    goto('/quiz');
+    goto(`${base}/quiz`);
   }
 </script>
 
@@ -31,7 +32,7 @@
 
     <div class="actions">
       <button class="primary" onclick={playAgain}>Play Again</button>
-      <button class="secondary" onclick={() => goto('/')}>Home</button>
+      <button class="secondary" onclick={() => goto(`${base}/`)}>Home</button>
     </div>
   </div>
 {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import ProgressBar from '$lib/components/ProgressBar.svelte';
   import Feedback from '$lib/components/Feedback.svelte';
@@ -27,7 +28,7 @@
 
   onMount(() => {
     const loaded = loadSessionSettings();
-    if (!loaded) { goto('/'); return; }
+    if (!loaded) { goto(`${base}/`); return; }
     settings = loaded;
     matrix = loadMatrix();
     nextQuestion();
@@ -109,7 +110,7 @@
       avgTime: Math.round(totalTime / answers.length),
       answers
     });
-    goto('/results');
+    goto(`${base}/results`);
   }
 
 </script>

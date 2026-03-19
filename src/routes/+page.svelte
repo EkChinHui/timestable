@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { onMount } from 'svelte';
   import { loadMatrix, getOverallAccuracy, getSessionCount, resetAll } from '$lib/stores/performance';
   import { saveSessionSettings } from '$lib/stores/session';
@@ -23,7 +24,7 @@
       count,
       ...(mode === 'drill' ? { table: drillTable } : {})
     });
-    goto('/quiz');
+    goto(`${base}/quiz`);
   }
 </script>
 
