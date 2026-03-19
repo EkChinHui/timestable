@@ -30,6 +30,7 @@
     settings = loaded;
     matrix = loadMatrix();
     nextQuestion();
+    return () => clearInterval(timerInterval);
   });
 
   function nextQuestion() {
@@ -62,13 +63,13 @@
     recordAnswer(matrix, a, b, isCorrect, timeMs);
     saveMatrix(matrix);
 
-    answers.push({
+    answers = [...answers, {
       a, b,
       userAnswer: parseInt(userInput, 10),
       correctAnswer,
       correct: isCorrect,
       timeMs
-    });
+    }];
 
     lastCorrect = isCorrect;
     lastCorrectAnswer = correctAnswer;
@@ -86,8 +87,8 @@
 
   function finishSession() {
     incrementSessionCount();
-    const totalTime = answers.reduce((s, a) => s + a.timeMs, 0);
-    const score = answers.filter(a => a.correct).length;
+    const totalTime = answers.reduce((s, ans) => s + ans.timeMs, 0);
+    const score = answers.filter(ans => ans.correct).length;
     saveCurrentSession({
       score,
       total: answers.length,
