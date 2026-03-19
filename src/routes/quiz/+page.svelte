@@ -7,6 +7,7 @@
   import { loadMatrix, saveMatrix, recordAnswer, getSessionCount, incrementSessionCount } from '$lib/stores/performance';
   import { loadSessionSettings, saveCurrentSession } from '$lib/stores/session';
   import { selectQuestion } from '$lib/engine/question';
+  import { playCorrect, playWrong, playStreak, isMuted, toggleMute } from '$lib/sounds';
   import type { SessionSettings, SessionAnswer, PerformanceMatrix } from '$lib/types';
 
   let settings: SessionSettings = $state({ mode: 'random', count: 20 });
@@ -25,6 +26,11 @@
   let answers: SessionAnswer[] = $state([]);
   let recentPairs: [number, number][] = $state([]);
   let inputEl: HTMLInputElement | undefined = $state();
+  let streak = $state(0);
+  let score = $state(0);
+  let streakMessage = $state('');
+  let muted = $state(isMuted());
+  let transitioning = $state(false);
 
   onMount(() => {
     const loaded = loadSessionSettings();
@@ -36,23 +42,27 @@
   });
 
   function nextQuestion() {
-    questionNum++;
-    const sessionCount = getSessionCount();
-    const [qa, qb] = selectQuestion(
-      settings.mode, matrix, sessionCount, recentPairs, settings.table
-    );
-    a = qa;
-    b = qb;
-    recentPairs = [...recentPairs, [Math.min(a, b), Math.max(a, b)]].slice(-3);
-    displayInput = '';
-    showFeedback = false;
-    questionStartTime = Date.now();
-    elapsed = 0;
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      elapsed = (Date.now() - questionStartTime) / 1000;
-    }, 100);
-    setTimeout(() => inputEl?.focus(), 10);
+    transitioning = true;
+    setTimeout(() => {
+      questionNum++;
+      const sessionCount = getSessionCount();
+      const [qa, qb] = selectQuestion(
+        settings.mode, matrix, sessionCount, recentPairs, settings.table
+      );
+      a = qa;
+      b = qb;
+      recentPairs = [...recentPairs, [Math.min(a, b), Math.max(a, b)]].slice(-3);
+      displayInput = '';
+      showFeedback = false;
+      questionStartTime = Date.now();
+      elapsed = 0;
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        elapsed = (Date.now() - questionStartTime) / 1000;
+      }, 100);
+      transitioning = false;
+      setTimeout(() => inputEl?.focus(), 10);
+    }, questionNum === 0 ? 0 : 150);
   }
 
   function submit() {
@@ -72,6 +82,25 @@
       correct: isCorrect,
       timeMs
     }];
+
+    if (isCorrect) {
+      streak++;
+      score++;
+      if (streak >= 10 && streak % 5 === 0) {
+        streakMessage = `${streak} in a row!`;
+        playStreak();
+      } else if (streak === 5) {
+        streakMessage = '5 in a row!';
+        playStreak();
+      } else {
+        streakMessage = '';
+        playCorrect();
+      }
+    } else {
+      streak = 0;
+      streakMessage = '';
+      playWrong();
+    }
 
     lastCorrect = isCorrect;
     lastCorrectAnswer = correctAnswer;
@@ -103,9 +132,9 @@
   function finishSession() {
     incrementSessionCount();
     const totalTime = answers.reduce((s, ans) => s + ans.timeMs, 0);
-    const score = answers.filter(ans => ans.correct).length;
+    const finalScore = answers.filter(ans => ans.correct).length;
     saveCurrentSession({
-      score,
+      score: finalScore,
       total: answers.length,
       avgTime: Math.round(totalTime / answers.length),
       answers
@@ -113,23 +142,43 @@
     goto(`${base}/results`);
   }
 
+  function handleToggleMute() {
+    muted = toggleMute();
+  }
 </script>
 
 <div class="quiz">
   <div class="header">
-    <span>Question {questionNum} / {settings.count}</span>
-    <span class="timer">{elapsed.toFixed(1)}s</span>
+    <span>{score}/{questionNum} correct</span>
+    <div class="header-right">
+      <button class="mute-btn" onclick={handleToggleMute} title={muted ? 'Unmute' : 'Mute'}>
+        {muted ? '🔇' : '🔊'}
+      </button>
+      <span class="timer">{elapsed.toFixed(1)}s</span>
+    </div>
   </div>
 
   <ProgressBar current={questionNum - (showFeedback ? 0 : 1)} total={settings.count} />
+
+  {#if streak >= 3 && !showFeedback}
+    <div class="streak">🔥 {streak} streak</div>
+  {/if}
 
   {#if showFeedback}
     <div class="question-area">
       <div class="question">{a} × {b} = {lastCorrectAnswer}</div>
       <Feedback correct={lastCorrect} correctAnswer={lastCorrectAnswer} />
+      {#if streakMessage}
+        <div class="streak-msg">{streakMessage}</div>
+      {/if}
     </div>
   {:else}
-    <form class="question-area" onsubmit={(e) => { e.preventDefault(); submit(); }}>
+    <form
+      class="question-area"
+      class:fade-in={!transitioning}
+      class:fade-out={transitioning}
+      onsubmit={(e) => { e.preventDefault(); submit(); }}
+    >
       <div class="question">{a} × {b} = ?</div>
       <input
         bind:this={inputEl}
@@ -167,12 +216,58 @@
   .header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 0.85rem;
     color: var(--text-secondary);
   }
 
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .mute-btn {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    padding: 0.2rem;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .mute-btn:active {
+    transform: none;
+  }
+
   .timer {
     font-variant-numeric: tabular-nums;
+  }
+
+  .streak {
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--warning);
+    animation: pulse 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+  }
+
+  .streak-msg {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--warning);
+    animation: pop 0.3s ease-out;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
   }
 
   .question-area {
@@ -180,7 +275,20 @@
     flex-direction: column;
     align-items: center;
     gap: 1.5rem;
-    padding-top: 3rem;
+    padding-top: 2rem;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.15s ease-out;
+  }
+
+  .fade-out {
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .question {
@@ -209,19 +317,20 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     width: 100%;
-    max-width: 260px;
+    max-width: 300px;
   }
 
   .pad-btn {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 600;
-    padding: 0.85rem;
+    padding: 1rem;
     background: var(--bg-card);
     border: 1px solid var(--border);
     color: var(--text);
     border-radius: var(--radius);
     user-select: none;
     -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .pad-btn:active {

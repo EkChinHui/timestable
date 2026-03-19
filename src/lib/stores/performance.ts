@@ -88,4 +88,5 @@ export function resetAll(): void {
   localStorage.removeItem(SESSIONS_KEY);
   localStorage.removeItem('mt_session_settings');
   localStorage.removeItem('mt_current_session');
+  localStorage.removeItem('mt_prev_session');
 }

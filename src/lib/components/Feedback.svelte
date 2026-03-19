@@ -4,9 +4,9 @@
 
 <div class="feedback" class:correct class:wrong={!correct}>
   {#if correct}
-    Correct!
+    <span class="icon">&#10003;</span> Correct!
   {:else}
-    The answer is {correctAnswer}
+    <span class="icon">&#10007;</span> The answer is {correctAnswer}
   {/if}
 </div>
 
@@ -17,6 +17,15 @@
     padding: 0.75rem 1.5rem;
     border-radius: var(--radius);
     text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  .icon {
+    font-size: 1.5rem;
+    line-height: 1;
   }
 
   .correct {
