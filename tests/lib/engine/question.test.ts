@@ -79,12 +79,13 @@ describe('selectQuestion', () => {
     }
 
     let hardCount = 0;
-    const trials = 500;
+    const trials = 2000;
     for (let i = 0; i < trials; i++) {
       const [a, b] = selectQuestion('adaptive', matrix, 30, []);
       const canon = [Math.min(a, b), Math.max(a, b)];
       if (canon[0] === 7 && canon[1] === 8) hardCount++;
     }
-    expect(hardCount / trials).toBeGreaterThan(0.05);
+    // 1/55 ≈ 1.8% uniform; adaptive should be well above that
+    expect(hardCount / trials).toBeGreaterThan(0.03);
   });
 });

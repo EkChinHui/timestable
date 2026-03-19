@@ -32,7 +32,7 @@
   <p class="subtitle">Master your times tables</p>
 
   <section>
-    <label class="label">Mode</label>
+    <span class="label">Mode</span>
     <div class="button-group">
       <button class:selected={mode === 'adaptive'} onclick={() => mode = 'adaptive'}>
         Adaptive
@@ -48,7 +48,7 @@
 
   {#if mode === 'drill'}
     <section>
-      <label class="label">Which table?</label>
+      <span class="label">Which table?</span>
       <div class="button-group tables">
         {#each Array.from({ length: 10 }, (_, i) => i + 1) as n}
           <button class:selected={drillTable === n} onclick={() => drillTable = n}>
@@ -60,7 +60,7 @@
   {/if}
 
   <section>
-    <label class="label">Questions</label>
+    <span class="label">Questions</span>
     <div class="button-group">
       <button class:selected={count === 10} onclick={() => count = 10}>10</button>
       <button class:selected={count === 20} onclick={() => count = 20}>20</button>
