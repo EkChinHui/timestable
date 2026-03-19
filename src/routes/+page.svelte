@@ -28,7 +28,7 @@
 </script>
 
 <div class="start">
-  <h1>Multiplication Trainer</h1>
+  <h1>TimesTable</h1>
   <p class="subtitle">Master your times tables</p>
 
   <section>

@@ -13,7 +13,8 @@
   let questionNum = $state(0);
   let a = $state(0);
   let b = $state(0);
-  let userInput = $state('');
+  let displayInput = $state('');
+  let userInput = $derived<number | null>(displayInput === '' ? null : Number(displayInput));
   let showFeedback = $state(false);
   let lastCorrect = $state(false);
   let lastCorrectAnswer = $state(0);
@@ -42,7 +43,7 @@
     a = qa;
     b = qb;
     recentPairs = [...recentPairs, [Math.min(a, b), Math.max(a, b)]].slice(-3);
-    userInput = '';
+    displayInput = '';
     showFeedback = false;
     questionStartTime = Date.now();
     elapsed = 0;
@@ -54,18 +55,18 @@
   }
 
   function submit() {
-    if (userInput.trim() === '' || showFeedback) return;
+    if (userInput === null || isNaN(userInput) || showFeedback) return;
     clearInterval(timerInterval);
     const timeMs = Date.now() - questionStartTime;
     const correctAnswer = a * b;
-    const isCorrect = parseInt(userInput, 10) === correctAnswer;
+    const isCorrect = userInput === correctAnswer;
 
     recordAnswer(matrix, a, b, isCorrect, timeMs);
     saveMatrix(matrix);
 
     answers = [...answers, {
       a, b,
-      userAnswer: parseInt(userInput, 10),
+      userAnswer: userInput!,
       correctAnswer,
       correct: isCorrect,
       timeMs
@@ -85,6 +86,19 @@
     }, delay);
   }
 
+  function padDigit(d: number) {
+    if (showFeedback) return;
+    if (displayInput.length >= 3) return;
+    displayInput += d;
+    inputEl?.focus();
+  }
+
+  function padBackspace() {
+    if (showFeedback) return;
+    displayInput = displayInput.slice(0, -1);
+    inputEl?.focus();
+  }
+
   function finishSession() {
     incrementSessionCount();
     const totalTime = answers.reduce((s, ans) => s + ans.timeMs, 0);
@@ -98,9 +112,6 @@
     goto('/results');
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') submit();
-  }
 </script>
 
 <div class="quiz">
@@ -117,19 +128,30 @@
       <Feedback correct={lastCorrect} correctAnswer={lastCorrectAnswer} />
     </div>
   {:else}
-    <div class="question-area">
+    <form class="question-area" onsubmit={(e) => { e.preventDefault(); submit(); }}>
       <div class="question">{a} × {b} = ?</div>
       <input
         bind:this={inputEl}
-        bind:value={userInput}
-        onkeydown={handleKeydown}
-        type="number"
-        inputmode="numeric"
+        bind:value={displayInput}
+        type="text"
+        inputmode="none"
         placeholder="..."
         class="answer-input"
+        oninput={(e) => {
+          const el = e.currentTarget;
+          el.value = el.value.replace(/[^0-9]/g, '').slice(0, 3);
+          displayInput = el.value;
+        }}
       />
-      <p class="hint">Press Enter to submit</p>
-    </div>
+      <div class="numpad">
+        {#each [1,2,3,4,5,6,7,8,9] as d}
+          <button type="button" class="pad-btn" onclick={() => padDigit(d)}>{d}</button>
+        {/each}
+        <button type="button" class="pad-btn pad-back" onclick={padBackspace}>&larr;</button>
+        <button type="button" class="pad-btn" onclick={() => padDigit(0)}>0</button>
+        <button type="submit" class="pad-btn pad-enter">OK</button>
+      </div>
+    </form>
   {/if}
 </div>
 
@@ -181,8 +203,41 @@
     -moz-appearance: textfield;
   }
 
-  .hint {
-    font-size: 0.85rem;
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .pad-btn {
+    font-size: 1.4rem;
+    font-weight: 600;
+    padding: 0.85rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .pad-btn:active {
+    background: var(--border);
+  }
+
+  .pad-back {
     color: var(--text-secondary);
+  }
+
+  .pad-enter {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .pad-enter:active {
+    background: var(--accent-hover);
   }
 </style>
