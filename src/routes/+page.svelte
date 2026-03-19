@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { loadMatrix, getOverallAccuracy, getSessionCount } from '$lib/stores/performance';
+  import { loadMatrix, getOverallAccuracy, getSessionCount, resetAll } from '$lib/stores/performance';
   import { saveSessionSettings } from '$lib/stores/session';
   import type { Mode } from '$lib/types';
 
@@ -74,6 +74,18 @@
     <p class="stats">
       Sessions: {sessionCount} · Accuracy: {Math.round(accuracy * 100)}%
     </p>
+  {/if}
+
+  {#if sessionCount > 0}
+    <button class="reset" onclick={() => {
+      if (confirm('Reset all training data? This cannot be undone.')) {
+        resetAll();
+        sessionCount = 0;
+        accuracy = 0;
+      }
+    }}>
+      Reset Data
+    </button>
   {/if}
 </div>
 
@@ -153,5 +165,18 @@
   .stats {
     font-size: 0.82rem;
     color: var(--text-secondary);
+  }
+
+  .reset {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: none;
+    padding: 0.4rem 0.8rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .reset:hover {
+    color: var(--error);
   }
 </style>
